@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import { authRoute } from './routes/authRoute';
+import { serviceRoute } from './routes/serviceRoute';
 import { userRoute } from './routes/userRoute';
 
 const app = new Hono();
@@ -12,7 +13,11 @@ app.use('*', logger());
 app.use('*', cors());
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const apiRoutes = app.basePath('/api/v1').route('/auth', authRoute).route('/users', userRoute);
+const apiRoutes = app
+  .basePath('/api/v1')
+  .route('/auth', authRoute)
+  .route('/users', userRoute)
+  .route('/services', serviceRoute);
 
 // Serve files from public directory
 app.get('/uploads/*', serveStatic({ root: './server/storage/app/public' }));
