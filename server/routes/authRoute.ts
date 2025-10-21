@@ -160,8 +160,8 @@ export const authRoute = new Hono()
 
         let validToken = null;
         for (const stored of storedTokens) {
-          const hashedRefreshToken = await bcrypt.hash(refreshToken, hashSalt ?? 'salt');
-          if (stored.token === hashedRefreshToken) {
+          const isValid = await bcrypt.compare(refreshToken, stored.token);
+          if (isValid) {
             validToken = stored;
             break;
           }

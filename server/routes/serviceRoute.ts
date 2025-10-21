@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { asc, desc, isNull, like, or } from 'drizzle-orm';
+import { asc, desc, inArray, isNull, like, or } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { and } from 'drizzle-orm';
 import { ne } from 'drizzle-orm';
@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { db } from '../db/database.js';
-import { servicesTable } from '../db/schema/schema.js';
+import { serviceLogsTable, servicesTable } from '../db/schema/schema.js';
 import { logger } from '../lib/logger.js';
 import {
   createPaginationResponse,
@@ -16,6 +16,7 @@ import {
   paginationSchema,
 } from '../lib/pagination.js';
 import authMiddleware from '../middleware/jwt.js';
+import { SERVICE_TYPE, SharedHostingHistoryResponse } from '../types/service.type.js';
 
 // Validation schemas
 const createServiceSchema = z.object({
@@ -331,6 +332,168 @@ export const serviceRoute = new Hono()
       });
     } catch (error) {
       logger.error(`Error deleting service: ${error}`);
+      return c.json({ message: 'Internal server error.' }, 500);
+    }
+  })
+
+  // Get service logs by service ID with pagination
+  .get(
+    '/:id/logs',
+    zValidator('param', serviceIdSchema),
+    zValidator('query', paginationSchema),
+    async (c) => {
+      try {
+        const { id } = c.req.valid('param');
+        const { page, limit, sort_by, order } = c.req.valid('query');
+        const { offset } = getPaginationParams(page, limit);
+
+        // Check if service exists
+        const service = await db
+          .select()
+          .from(servicesTable)
+          .where(and(eq(servicesTable.id, id), isNull(servicesTable.deletedAt)));
+
+        if (service.length === 0) {
+          return c.json({ message: 'Service not found.' }, 404);
+        }
+
+        // Get total count of service logs
+        const totalResult = await db
+          .select({ count: count() })
+          .from(serviceLogsTable)
+          .where(and(eq(serviceLogsTable.serviceId, id), isNull(serviceLogsTable.deletedAt)));
+
+        const total = totalResult[0].count;
+
+        // Build order by clause
+        const orderBy =
+          order === 'desc'
+            ? desc(serviceLogsTable[sort_by as keyof typeof serviceLogsTable.$inferSelect])
+            : asc(serviceLogsTable[sort_by as keyof typeof serviceLogsTable.$inferSelect]);
+
+        // Get paginated service logs
+        const serviceLogs = await db
+          .select({
+            id: serviceLogsTable.id,
+            serviceId: serviceLogsTable.serviceId,
+            data: serviceLogsTable.data,
+            recordId: serviceLogsTable.recordId,
+            recordedAt: serviceLogsTable.recordedAt,
+            createdAt: serviceLogsTable.createdAt,
+            updatedAt: serviceLogsTable.updatedAt,
+          })
+          .from(serviceLogsTable)
+          .where(and(eq(serviceLogsTable.serviceId, id), isNull(serviceLogsTable.deletedAt)))
+          .orderBy(orderBy)
+          .limit(limit)
+          .offset(offset);
+
+        const response = createPaginationResponse(
+          serviceLogs,
+          total,
+          page,
+          limit,
+          '',
+          sort_by,
+          order
+        );
+
+        return c.json(response);
+      } catch (error) {
+        logger.error(`Error fetching service logs: ${error}`);
+        return c.json({ message: 'Internal server error.' }, 500);
+      }
+    }
+  )
+
+  .post('/:id/sync-logs', zValidator('param', serviceIdSchema), async (c) => {
+    try {
+      const { id } = c.req.valid('param');
+      // get service by id
+      const services = await db
+        .select()
+        .from(servicesTable)
+        .where(and(eq(servicesTable.id, id), isNull(servicesTable.deletedAt)));
+
+      if (services.length === 0) {
+        return c.json({ message: 'Service not found.' }, 404);
+      }
+
+      const service = services[0];
+
+      // check type of service
+      let isConfigureToSyncLogs = false;
+
+      // check if service is shared hosting and is configured to sync logs
+      if (service.type === SERVICE_TYPE.SHARED_HOSTING) {
+        isConfigureToSyncLogs = true;
+
+        try {
+          // fetch histroy from res status api and it api key
+          const history = await fetch(`${service.resStatusApiUrl}/resource-usage/history`, {
+            headers: {
+              'x-api-key': service.resStatusApiKey,
+            },
+          });
+
+          if (!history.ok) {
+            return c.json({ message: 'Failed to fetch history from res status api.' }, 500);
+          }
+
+          const historyData: SharedHostingHistoryResponse = await history.json();
+
+          if (!historyData.success) {
+            return c.json({ message: 'Failed to fetch history from res status api.' }, 500);
+          }
+
+          const historyDataList = historyData.data;
+
+          const listRecordIds = historyDataList.map((historyData) => historyData.id);
+
+          // get list of record ids from service logs table
+          const listRecordIdsResponse = await db
+            .select({ recordId: serviceLogsTable.recordId })
+            .from(serviceLogsTable)
+            .where(
+              and(
+                eq(serviceLogsTable.serviceId, service.id),
+                inArray(serviceLogsTable.recordId, listRecordIds)
+              )
+            );
+
+          // filter list of record ids that are not in the list of record ids from service logs table
+          const listRecordIdsToInsert = historyDataList.filter(
+            (record) => !listRecordIdsResponse.some((response) => response.recordId === record.id)
+          );
+
+          const valuesToInsert = listRecordIdsToInsert.map((record) => ({
+            serviceId: service.id,
+            recordId: record.id,
+            data: record,
+            recordedAt: new Date(record.checked_at),
+          }));
+
+          if (valuesToInsert.length > 0) {
+            // insert into service logs table
+            await db.insert(serviceLogsTable).values(valuesToInsert);
+          }
+
+          return c.json({
+            success: true,
+            message: 'Service logs synced successfully.',
+            data: valuesToInsert,
+          });
+        } catch (error) {
+          logger.error(`Error fetching history from res status api: ${error}`);
+          return c.json({ message: 'Internal server error.' }, 500);
+        }
+      }
+
+      if (!isConfigureToSyncLogs) {
+        return c.json({ message: 'Service is not configured to sync logs.' }, 400);
+      }
+    } catch (error) {
+      logger.error(`Error syncing service logs: ${error}`);
       return c.json({ message: 'Internal server error.' }, 500);
     }
   });
