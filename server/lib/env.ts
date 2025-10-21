@@ -14,6 +14,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string(),
   HASH_SALT: z.string().default('salt'),
   TURNSTILE_SECRET_KEY: z.string(),
+  // Redis configuration
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.string().default('6379'),
+  REDIS_PASSWORD: z.string().optional(),
 });
 
 export default envSchema.parse(process.env);
