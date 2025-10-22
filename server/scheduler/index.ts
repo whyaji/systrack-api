@@ -2,11 +2,14 @@ import 'dotenv/config';
 
 import { logger } from '../lib/logger.js';
 import ServiceSyncScheduler from './serviceSyncScheduler.js';
+import ServiceWhatsappScheduler from './serviceWhatsappScheduler.js';
 class SchedulerManager {
   private serviceSyncScheduler: ServiceSyncScheduler;
+  private serviceWhatsappScheduler: ServiceWhatsappScheduler;
 
   constructor() {
     this.serviceSyncScheduler = new ServiceSyncScheduler();
+    this.serviceWhatsappScheduler = new ServiceWhatsappScheduler();
   }
 
   public async start(): Promise<void> {
@@ -14,6 +17,7 @@ class SchedulerManager {
 
     try {
       await this.serviceSyncScheduler.start();
+      await this.serviceWhatsappScheduler.start();
       logger.info('All schedulers started successfully');
     } catch (error) {
       logger.error(`Error starting schedulers: ${error}`);
@@ -26,6 +30,7 @@ class SchedulerManager {
 
     try {
       await this.serviceSyncScheduler.stop();
+      await this.serviceWhatsappScheduler.stop();
       logger.info('All schedulers stopped successfully');
     } catch (error) {
       logger.error(`Error stopping schedulers: ${error}`);
@@ -35,6 +40,11 @@ class SchedulerManager {
   // Method to manually trigger sync (useful for testing)
   public async triggerManualSync(): Promise<void> {
     await this.serviceSyncScheduler.triggerManualSync();
+  }
+
+  // Method to manually trigger send whatsapp (useful for testing)
+  public async triggerManualSendWhatsapp(): Promise<void> {
+    await this.serviceWhatsappScheduler.triggerManualSendWhatsapp();
   }
 }
 

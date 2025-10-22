@@ -65,7 +65,7 @@ async function handleRedisMessage(channel: string, message: string) {
             await bot.sendImageToGroup(
               data.groupName,
               imageBuffer,
-              `Chart for ${data.groupName} for detail service ${data.serviceName}`
+              `Chart for ${data.groupName} for detail service`
             );
           }
         } catch (error) {
