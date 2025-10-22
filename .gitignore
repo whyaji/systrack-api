@@ -6,3 +6,7 @@ logs/
 server/storage/*
 
 .env
+
+.cursor/
+whatsapp-session/
+.wwebjs_cache/

@@ -7,6 +7,7 @@ import { authRoute } from './routes/authRoute';
 import { serviceRoute } from './routes/serviceRoute';
 import syncRoute from './routes/syncRoute';
 import { userRoute } from './routes/userRoute';
+import { whatsappRoute } from './routes/whatsappRoute';
 
 const app = new Hono();
 
@@ -19,7 +20,8 @@ const apiRoutes = app
   .route('/auth', authRoute)
   .route('/users', userRoute)
   .route('/services', serviceRoute)
-  .route('/sync', syncRoute);
+  .route('/sync', syncRoute)
+  .route('/whatsapp', whatsappRoute);
 
 // Serve files from public directory
 app.get('/uploads/*', serveStatic({ root: './server/storage/app/public' }));
