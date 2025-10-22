@@ -1,8 +1,7 @@
 import 'dotenv/config';
 
 import { logger } from '../lib/logger.js';
-import ServiceSyncScheduler from '../lib/scheduler.js';
-
+import ServiceSyncScheduler from './serviceSyncScheduler.js';
 class SchedulerManager {
   private serviceSyncScheduler: ServiceSyncScheduler;
 

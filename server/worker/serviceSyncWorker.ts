@@ -12,7 +12,7 @@ class ServiceSyncWorker {
   private worker: Worker;
 
   constructor() {
-    this.worker = new Worker('service-sync', this.processServiceSyncJob.bind(this), {
+    this.worker = new Worker('systrack:service-sync', this.processServiceSyncJob.bind(this), {
       connection: redis,
       concurrency: 5,
     });

@@ -3,9 +3,9 @@ import * as cron from 'node-cron';
 
 import { db } from '../db/database.js';
 import { servicesTable } from '../db/schema/schema.js';
+import { logger } from '../lib/logger.js';
+import { ServiceSyncJobData, serviceSyncQueue } from '../lib/queue.js';
 import { SERVICE_TYPE } from '../types/service.type.js';
-import { logger } from './logger.js';
-import { ServiceSyncJobData, serviceSyncQueue } from './queue.js';
 
 class ServiceSyncScheduler {
   private cronTask: cron.ScheduledTask | null = null;
