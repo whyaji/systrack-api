@@ -69,9 +69,9 @@ class ServiceWhatsappScheduler {
 
       // Create jobs for each service
       const jobs = await Promise.allSettled(
-        services.map(async (service) => {
-          // Add job to queue with delay to prevent overwhelming the API
-          const delay = 0;
+        services.map(async (service, index) => {
+          // Delay 5 seconds for each service
+          const delay = index * 10000;
 
           const job = await this.whatsappQueueService.queueCommand(
             'Digital Architect',

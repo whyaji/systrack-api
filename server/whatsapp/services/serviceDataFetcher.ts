@@ -65,7 +65,7 @@ export class ServiceDataFetcher {
         id: serviceRecord.id,
         name: serviceRecord.name,
         domain: getDomainUrlFromResApi(serviceRecord.resStatusApiUrl),
-        status: serviceRecord.status === 1 ? '🟢 Active' : '🔴 Inactive',
+        status: serviceRecord.status === 1 ? 'Active' : 'Inactive',
         logs: logs.map((log) => {
           const logData = log.data as SharedHostingHistoryData;
           return {

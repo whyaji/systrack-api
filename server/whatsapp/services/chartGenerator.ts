@@ -49,7 +49,7 @@ export class ChartGenerator {
       await page.setContent(htmlContent);
 
       // Wait for charts to render
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Take screenshot
       const screenshot = await page.screenshot({
@@ -167,12 +167,12 @@ export class ChartGenerator {
             font-size: 11px;
             font-weight: 700;
             margin-top: 12px;
-            background: ${serviceData.status === 'active' ? '#10b981' : '#ef4444'};
+            background: ${serviceData.status === 'Active' ? '#10b981' : '#ef4444'};
             color: white;
             text-transform: uppercase;
             letter-spacing: 1px;
             box-shadow: 0 4px 15px ${
-              serviceData.status === 'active' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+              serviceData.status === 'Active' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
             };
         }
         
@@ -330,7 +330,6 @@ export class ChartGenerator {
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-icon">💾</span>
                         <div class="stat-label">Disk Usage</div>
                     </div>
                     <div class="stat-value">
@@ -349,7 +348,6 @@ export class ChartGenerator {
                 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-icon">📁</span>
                         <div class="stat-label">File Count</div>
                     </div>
                     <div class="stat-value">
@@ -593,12 +591,12 @@ export class ChartGenerator {
             font-size: 11px;
             font-weight: 700;
             margin-top: 12px;
-            background: ${serviceData.status === 'active' ? '#10b981' : '#ef4444'};
+            background: ${serviceData.status === 'Active' ? '#10b981' : '#ef4444'};
             color: white;
             text-transform: uppercase;
             letter-spacing: 1px;
             box-shadow: 0 4px 15px ${
-              serviceData.status === 'active' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+              serviceData.status === 'Active' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
             };
         }
         
