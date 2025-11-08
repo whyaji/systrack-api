@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import * as cron from 'node-cron';
 
 import { db } from '../db/database.js';
@@ -53,7 +53,10 @@ class ServiceSyncScheduler {
         .where(
           and(
             eq(servicesTable.status, 1), // Active services only
-            eq(servicesTable.type, SERVICE_TYPE.SHARED_HOSTING), // Only shared hosting services
+            or(
+              eq(servicesTable.type, SERVICE_TYPE.SHARED_HOSTING),
+              eq(servicesTable.type, SERVICE_TYPE.VPS)
+            ), // Only shared hosting and vps services
             isNull(servicesTable.deletedAt)
           )
         );

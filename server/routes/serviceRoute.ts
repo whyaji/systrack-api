@@ -16,7 +16,11 @@ import {
   paginationSchema,
 } from '../lib/pagination.js';
 import authMiddleware from '../middleware/jwt.js';
-import { SERVICE_TYPE, SharedHostingHistoryResponse } from '../types/service.type.js';
+import {
+  SERVICE_TYPE,
+  SharedHostingHistoryResponse,
+  VpsHistoryResponse,
+} from '../types/service.type.js';
 
 // Validation schemas
 const createServiceSchema = z.object({
@@ -471,6 +475,70 @@ export const serviceRoute = new Hono()
             recordId: record.id,
             data: record,
             recordedAt: new Date(record.checked_at),
+          }));
+
+          if (valuesToInsert.length > 0) {
+            // insert into service logs table
+            await db.insert(serviceLogsTable).values(valuesToInsert);
+          }
+
+          return c.json({
+            success: true,
+            message: 'Service logs synced successfully.',
+            data: valuesToInsert,
+          });
+        } catch (error) {
+          logger.error(`Error fetching history from res status api: ${error}`);
+          return c.json({ message: 'Internal server error.' }, 500);
+        }
+      }
+
+      if (service.type === SERVICE_TYPE.VPS) {
+        isConfigureToSyncLogs = true;
+
+        try {
+          // fetch histroy from res status api and it api key
+          const history = await fetch(`${service.resStatusApiUrl}/resource-usage/history`, {
+            headers: {
+              'x-api-key': service.resStatusApiKey,
+            },
+          });
+
+          if (!history.ok) {
+            return c.json({ message: 'Failed to fetch history from res status api.' }, 500);
+          }
+
+          const historyData: VpsHistoryResponse = await history.json();
+
+          if (!historyData.success) {
+            return c.json({ message: 'Failed to fetch history from res status api.' }, 500);
+          }
+
+          const historyDataList = historyData.data;
+
+          const listRecordIds = historyDataList.map((historyData) => historyData.id);
+
+          // get list of record ids from service logs table
+          const listRecordIdsResponse = await db
+            .select({ recordId: serviceLogsTable.recordId })
+            .from(serviceLogsTable)
+            .where(
+              and(
+                eq(serviceLogsTable.serviceId, service.id),
+                inArray(serviceLogsTable.recordId, listRecordIds)
+              )
+            );
+
+          // filter list of record ids that are not in the list of record ids from service logs table
+          const listRecordIdsToInsert = historyDataList.filter(
+            (record) => !listRecordIdsResponse.some((response) => response.recordId === record.id)
+          );
+
+          const valuesToInsert = listRecordIdsToInsert.map((record) => ({
+            serviceId: service.id,
+            recordId: record.id,
+            data: record,
+            recordedAt: new Date(record.created_at),
           }));
 
           if (valuesToInsert.length > 0) {

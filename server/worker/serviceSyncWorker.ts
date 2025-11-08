@@ -6,7 +6,13 @@ import { serviceLogsTable, servicesTable } from '../db/schema/schema.js';
 import { logger } from '../lib/logger.js';
 import { ServiceSyncJobData } from '../lib/queue.js';
 import { redis } from '../lib/redis.js';
-import { SERVICE_TYPE, SharedHostingHistoryResponse } from '../types/service.type.js';
+import {
+  SERVICE_TYPE,
+  SharedHostingHistoryData,
+  SharedHostingHistoryResponse,
+  VpsHistoryData,
+  VpsHistoryResponse,
+} from '../types/service.type.js';
 
 class ServiceSyncWorker {
   private worker: Worker;
@@ -39,9 +45,9 @@ class ServiceSyncWorker {
 
       const service = services[0];
 
-      // Only sync shared hosting services
-      if (service.type !== SERVICE_TYPE.SHARED_HOSTING) {
-        logger.info(`Service ${serviceName} is not a shared hosting service, skipping sync`);
+      // Only sync shared hosting and vps services
+      if ([SERVICE_TYPE.SHARED_HOSTING, SERVICE_TYPE.VPS].includes(service.type)) {
+        logger.info(`Service ${serviceName} is not a shared hosting or vps service, skipping sync`);
         return;
       }
 
@@ -62,7 +68,7 @@ class ServiceSyncWorker {
         throw new Error(`Failed to fetch history from res status API. Status: ${history.status}`);
       }
 
-      const historyData: SharedHostingHistoryResponse = await history.json();
+      const historyData: SharedHostingHistoryResponse | VpsHistoryResponse = await history.json();
 
       if (!historyData.success) {
         throw new Error('Failed to fetch history from res status API: API returned success=false');
@@ -100,12 +106,24 @@ class ServiceSyncWorker {
         return;
       }
 
+      const getRecordAt = (record: SharedHostingHistoryData | VpsHistoryData) => {
+        if ('checked_at' in record) {
+          return record.checked_at;
+        }
+
+        if ('created_at' in record) {
+          return record.created_at;
+        }
+
+        throw new Error('Invalid record type');
+      };
+
       // Prepare data for insertion
       const valuesToInsert = newRecords.map((record) => ({
         serviceId: service.id,
         recordId: record.id,
         data: record,
-        recordedAt: new Date(record.checked_at),
+        recordedAt: new Date(getRecordAt(record)),
       }));
 
       // Insert new records

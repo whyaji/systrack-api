@@ -24,6 +24,7 @@ export class MessageBroker {
   private isSubscribed: boolean = false;
   private publisher: Redis;
   private subscriber: Redis;
+  private initializePromise: Promise<void> | null = null;
 
   private constructor() {
     // Create separate Redis connections for pub/sub and regular operations
@@ -43,7 +44,7 @@ export class MessageBroker {
       lazyConnect: true,
     });
 
-    this.subscribeToResults();
+    this.initializePromise = this.initialize();
   }
 
   public static getInstance(): MessageBroker {
@@ -53,12 +54,45 @@ export class MessageBroker {
     return MessageBroker.instance;
   }
 
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initializePromise) {
+      this.initializePromise = this.initialize();
+    }
+
+    try {
+      await this.initializePromise;
+    } catch (error) {
+      this.initializePromise = null;
+      throw error;
+    }
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      if (this.publisher.status !== 'ready' && this.publisher.status !== 'connecting') {
+        await this.publisher.connect();
+      }
+
+      if (this.subscriber.status !== 'ready' && this.subscriber.status !== 'connecting') {
+        await this.subscriber.connect();
+      }
+
+      await this.subscribeToResults();
+      logger.info('MessageBroker initialization completed');
+    } catch (error) {
+      logger.error(`Failed to initialize MessageBroker: ${error}`);
+      throw error;
+    }
+  }
+
   public async sendTriggerToGroup(
     groupName: string,
     message: string,
     imageBuffer?: Buffer
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
+      await this.ensureInitialized();
+
       const messageId = this.generateMessageId();
 
       const triggerMessage: TriggerMessage = {
@@ -107,6 +141,8 @@ export class MessageBroker {
 
   public async getAvailableGroups(): Promise<Array<{ name: string; id: string }>> {
     try {
+      await this.ensureInitialized();
+
       // Request groups from bot process
       await this.publisher.publish(
         'whatsapp:trigger:request',
@@ -133,6 +169,8 @@ export class MessageBroker {
   }
 
   public async retryFailedMessages(): Promise<void> {
+    await this.ensureInitialized();
+
     const failedMessages = Array.from(this.messageQueue.values()).filter(
       (msg) => msg.status === 'failed' && msg.retryCount < msg.maxRetries
     );
@@ -172,6 +210,7 @@ export class MessageBroker {
       logger.info('MessageBroker subscribed to Redis channels');
     } catch (error) {
       logger.error(`Error subscribing to Redis channels: ${error}`);
+      throw error;
     }
   }
 

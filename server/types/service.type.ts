@@ -13,7 +13,7 @@ export type ServiceType = {
 export type ServiceLogType = {
   id: number;
   serviceId: number;
-  data: Record<string, unknown> | SharedHostingHistoryData; // JSON data from the log
+  data: Record<string, unknown> | SharedHostingHistoryData | VpsHistoryData; // JSON data from the log
   recordId: number;
   recordedAt: string;
   createdAt: string;
@@ -42,6 +42,29 @@ export type SharedHostingHistoryResponse = {
   success: boolean;
   data: SharedHostingHistoryData[];
   meta: SharedHostingHistoryMeta;
+};
+
+export type VpsHistoryData = {
+  id: number;
+  cpu_usage: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
+  disk_used_mb: number;
+  disk_total_mb: number;
+  created_at: string;
+};
+
+export type VpsHistoryMeta = {
+  days: number;
+  start_date: string;
+  end_date: string;
+  total_records: number;
+};
+
+export type VpsHistoryResponse = {
+  success: boolean;
+  data: VpsHistoryData[];
+  meta: VpsHistoryMeta;
 };
 
 export type ServiceTypeLabels = {
